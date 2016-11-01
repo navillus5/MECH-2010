@@ -1,0 +1,152 @@
+/*  
+   ##################################################################### 
+   ##                                                                 ## 
+   ##                    Zumo_8                                       ## 
+   ##                                                                 ## 
+   ##                    Daniel J. Sullivan                           ## 
+   ##                    July 2016                                    ## 
+   ##                                                                 ##
+   #####################################################################
+
+   Zumo will use state change detection to identify when it has passed
+   an intersection.
+   At each intersection it encounters it will 
+      - stop for 1 second
+      - increment the row counter
+      - emit a series of beeps equal to the number of rows
+   The Zumo will stop when it reaches the number specified by the variable
+   goToRow and play a descending scale in 8th, 16th, and 32nd notes.
+*/
+
+#include <ZumoMotors.h>
+ZumoMotors motors;
+#include <ZumoBuzzer.h>
+ZumoBuzzer buzzer;
+
+// Define Global variables                                       
+int irEmit      = 2;      // create name for IR LED's
+int zumoButton  = 12;     // create name for Zumo button    
+int led         = 13;     // create name for Indicator LED
+int ledState    = LOW;    // create Indicator LED state and initialize value
+int mspeed      = 300;    // define value for motor speeds (0-400)
+int leftSpeed   = 0;
+int rightSpeed  = 0;
+int threshold   = 500;
+float kP        = 0.1;    
+int irPin[]     = {5, A2, A0, 11, A3, 4};   
+int irVal[]     = {0,0,0,0,0,0};                
+int interval    = 100;                      // indicator LED delay variable
+unsigned long previousMillis = 0;           // delay variable for use with blinkLED()
+int leftState   = 0;
+int lastLeftState = 0;
+int rightState   = 0;
+int lastRightState = 0;
+int rowCount = 0;
+int endFlag = 0;
+
+void setup()
+{
+  pinMode(zumoButton,INPUT_PULLUP);         // set button pin to input and turn on internal pullup resistor (pin reads HIGH until button is pushed)
+  pinMode(irEmit,OUTPUT);                   // set IR LED control pin to output
+  pinMode(led, OUTPUT);                     // set indicator LED pin to output
+  while (digitalRead(zumoButton) == HIGH){blinkLED();}
+  digitalWrite(led,LOW);                // turn off Indicator LED
+  delay(2000);
+  buzzer.play(">g8>>a8");
+  delay(1000);    
+}
+
+void loop()
+{
+  int goToRow = 3;
+  if(rowCount<goToRow)
+  {   
+  irValue();
+  int control = irVal[2] - irVal[3];
+  float deltaSpeed = abs(control)*kP;
+  deltaSpeed = int(deltaSpeed);
+
+  if(abs(control)>50){
+  if (control >= 0){
+    leftSpeed = mspeed+3*deltaSpeed;
+    rightSpeed = mspeed-2*deltaSpeed;
+    if(rightSpeed<0){rightSpeed=0;}    
+  }
+  else{
+    leftSpeed = mspeed-2*deltaSpeed;
+    if(leftSpeed<0){leftSpeed=0;}    
+    rightSpeed = mspeed+3*deltaSpeed;
+    }
+    }
+    else{
+    leftSpeed = mspeed;   
+    rightSpeed = mspeed;      
+    }
+  motors.setLeftSpeed(leftSpeed);
+  motors.setRightSpeed(rightSpeed);
+
+  if(irVal[5]>threshold){leftState = 1;}
+  else{leftState=0;}
+  if(leftState != lastLeftState){
+    if(leftState == 0){
+      rowCount = rowCount+1;
+      motors.setLeftSpeed(0);
+      motors.setRightSpeed(0);
+      for(int i=0;i<rowCount;i++){
+        buzzer.play(">g32>>c32");
+        delay(100);
+      }
+      delay(1000); 
+    }
+  }
+  lastLeftState = leftState;
+   }
+   else
+   {
+    motors.setLeftSpeed(0);
+    motors.setRightSpeed(0);
+    if(endFlag == 0)
+    {
+    buzzer.play(">g8>>f8>>e8>>d8>>c8>>b8>>a8>R8>g16>>f16>>e16>>d16>>c16>>b16>>a16>R8>g32>>f32>>e32>>d32>>c32>>b32>>a32>");
+    endFlag=1;
+     }
+    }
+   
+}
+
+    
+
+
+//************************************** blinkLED() ********************************************
+
+void blinkLED(){
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {  
+    previousMillis = currentMillis;
+    if (ledState == LOW) {
+      ledState = HIGH;
+    } else {
+      ledState = LOW;
+    }
+    digitalWrite(led, ledState);
+  }
+}
+
+//************************************* irValue() **********************************************
+
+void irValue(){
+  unsigned long startTime;
+  
+  for(int i=0; i<6; i++){
+    pinMode(irPin[i], OUTPUT);             // Set IR detector pin to an output
+    digitalWrite(irPin[i], HIGH);          // Set the pin voltage to +5V and...
+    delayMicroseconds(10);                 // ...charge capacitor for 10 usec
+    pinMode(irPin[i],INPUT);               // Set IR detector pin to an output
+    digitalWrite(irPin[i], LOW);           // Set IR detector pin LOW allowing the capacitor to dicharge through phototransistor.
+    startTime = micros();                  // micros() is the number of microseconds since the program began. 
+    while(digitalRead(irPin[i]) == HIGH){  // Loop until capacitor has discharged below ~2.3V.
+      }
+    irVal[i] = micros() - startTime;       // determine the time in microseconds required for capacitor to discharge.                                                          
+  }                                           
+}
+
