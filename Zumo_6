@@ -1,0 +1,124 @@
+/*  
+   ##################################################################### 
+   ##                                                                 ## 
+   ##                    Zumo_6                                       ## 
+   ##                                                                 ## 
+   ##                    Daniel J. Sullivan                           ## 
+   ##                    July 2016                                    ## 
+   ##                                                                 ##
+   #####################################################################
+
+   Zumo bot will follow a thin line that lies between its two rightmost sensors
+*/
+#include <ZumoMotors.h>                // initialize library to be used by program
+ZumoMotors motors;                     // create motor library object
+
+
+// Define Global variables                                       
+int irEmit      = 2;      // create name for IR LED's
+int zumoButton  = 12;     // create name for Zumo button    
+int led         = 13;     // create name for Indicator LED
+int ledState    = LOW;    // create Indicator LED state and initialize value
+int mspeed      = 100;    // define value for motor speeds (0-400)
+int leftCal     = 0;
+int rightCal    = 0;
+int leftSpeed   = 100;
+int rightSpeed  = 100;
+int threshold   = 0;    // Define sensor threshold value where dark > threshold
+float kP        = 0.1;    // proportional control variable 
+int irPin[]     = {5, A2, A0, 11, A3, 4};   // create array of IR sensor pins
+int irVal[]     = {0,0,0,0,0,0};              // create array for IR sensor value
+long interval   = 100;                      // indicator LED delay variable
+unsigned long previousMillis = 0;           // delay variable for use with blinkLED()
+
+  
+void setup()
+{
+  Serial.begin(9600);                  // open up //  Serial link to PC for debugging
+  pinMode(zumoButton,INPUT_PULLUP);         // set button pin to input and turn on internal pullup resistor (pin reads HIGH until button is pushed)
+  pinMode(irEmit,OUTPUT);                   // set IR LED control pin to output
+  pinMode(led, OUTPUT);                     // set indicator LED pin to output
+
+  irValue();                            // Read IR sensor values
+  rightCal = irVal[2];
+  leftCal = irVal[3];
+
+
+    Serial.print("rightCal = ");
+    Serial.print(rightCal);
+    Serial.print("  leftCal = ");
+    Serial.print(leftCal);
+    Serial.println("");
+    
+  while (digitalRead(zumoButton) == HIGH)  // while loop will call blinkLED() until button is pressed
+  {
+    blinkLED();                         // user defined function that blinks LED                             
+    } 
+  digitalWrite(led,LOW);                // turn off Indicator LED
+  digitalWrite(irEmit,HIGH);            // turn on IR LED's
+
+  delay(2000);       
+}
+
+void loop()
+{
+  int deltaSpeed = 45;
+  leftSpeed = mspeed;
+  rightSpeed = mspeed;  
+  irValue();
+  if(irVal[2]> (rightCal+40)){
+    leftSpeed = mspeed+2*deltaSpeed;
+    rightSpeed = mspeed-deltaSpeed;
+  }
+  if(irVal[3]> (leftCal+40)){
+    leftSpeed = mspeed-deltaSpeed;
+    rightSpeed = mspeed+2*deltaSpeed;
+  }     
+
+   motors.setLeftSpeed(leftSpeed);
+   motors.setRightSpeed(rightSpeed);       
+}
+
+    
+
+
+//************************************** blinkLED() ********************************************
+
+void blinkLED(){
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {  
+    previousMillis = currentMillis;
+    if (ledState == LOW) {
+      ledState = HIGH;
+    } else {
+      ledState = LOW;
+    }
+    digitalWrite(led, ledState);
+  }
+}
+
+
+
+
+//************************************* irValue() **********************************************
+
+void irValue(){
+  unsigned long startTime;
+  
+  for(int i=0; i<6; i++){
+    pinMode(irPin[i], OUTPUT);             // Set IR detector pin to an output
+    digitalWrite(irPin[i], HIGH);          // Set the pin voltage to +5V and...
+    delayMicroseconds(10);                 // ...charge capacitor for 10 usec
+    pinMode(irPin[i],INPUT);               // Set IR detector pin to an output
+    digitalWrite(irPin[i], LOW);           // Set IR detector pin LOW allowing the capacitor to dicharge through phototransistor.
+    startTime = micros();                  // micros() is the number of microseconds since the program began. 
+    while(digitalRead(irPin[i]) == HIGH){  // Loop until capacitor has discharged below ~2.3V.
+      }
+    irVal[i] = micros() - startTime;       // determine the time in microseconds required for capacitor to discharge.
+//    //  Serial.print(irVal[i]);                // print the time required to discharge
+//    //  Serial.print("   ");                                                            
+  }                                        
+//    //  Serial.println("   ");
+//    delay(500);    
+}
+
