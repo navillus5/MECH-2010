@@ -1,0 +1,87 @@
+/*  
+   ##################################################################### 
+   ##                                                                 ## 
+   ##                    Zumo_7                                       ## 
+   ##                                                                 ## 
+   ##                    Daniel J. Sullivan                           ## 
+   ##                    July 2016                                    ## 
+   ##                                                                 ##
+   #####################################################################
+
+   Use the onboard magnetic compass to specify a direction. The zumo will spin and emit
+   a tone when it is pointing in the direction of the chosen heading.
+*/
+
+#include <Wire.h>
+#include <ZumoMotors.h>
+ZumoMotors motors;
+#include <LSM303.h>
+LSM303 compass;
+#include <ZumoBuzzer.h>
+ZumoBuzzer buzzer;
+
+// Define Global variables                                       
+int irEmit      = 2;      // create name for IR LED's
+int zumoButton  = 12;     // create name for Zumo button    
+int led         = 13;     // create name for Indicator LED
+int ledState    = LOW;    // create Indicator LED state and initialize value
+int mspeed      = 100;    // define value for motor speeds (0-400)
+int xHeading    = 0;
+int yHeading    = 0;
+int xActual     = 0;
+int yActual     = 0;
+long interval   = 100;                      // indicator LED delay variable
+unsigned long previousMillis = 0;           // delay variable for use with blinkLED()
+
+void setup()
+{
+  Wire.begin();
+  compass.init();
+  compass.enableDefault();
+  pinMode(zumoButton,INPUT_PULLUP);         // set button pin to input and turn on internal pullup resistor (pin reads HIGH until button is pushed)
+  pinMode(irEmit,OUTPUT);                   // set IR LED control pin to output
+  pinMode(led, OUTPUT);                     // set indicator LED pin to output
+  while (digitalRead(zumoButton) == HIGH){blinkLED();} 
+  digitalWrite(led,LOW);                // turn off Indicator LED
+  delay(2000);
+  motors.setLeftSpeed(2*mspeed);
+  motors.setRightSpeed(-mspeed); 
+  delay(500);
+  compass.read();
+  xHeading = compass.m.x;
+  yHeading = compass.m.y;
+  buzzer.play(">g32>>c32");     
+}
+
+void loop()
+{
+
+  compass.read();
+  xActual = compass.m.x;
+  yActual = compass.m.y;
+
+  if(xActual < (xHeading+100)&& xActual > (xHeading-100)){
+    if(yActual < (yHeading+100)&& yActual > (yHeading-100)){
+        buzzer.play(">g32>>c32");
+    }
+  }
+
+}
+
+    
+
+
+//************************************** blinkLED() ********************************************
+
+void blinkLED(){
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {  
+    previousMillis = currentMillis;
+    if (ledState == LOW) {
+      ledState = HIGH;
+    } else {
+      ledState = LOW;
+    }
+    digitalWrite(led, ledState);
+  }
+}
