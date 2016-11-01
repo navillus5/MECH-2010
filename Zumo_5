@@ -1,0 +1,190 @@
+/*  
+   ##################################################################### 
+   ##                                                                 ## 
+   ##                    Zumo_5                                       ## 
+   ##                                                                 ## 
+   ##                    Daniel J. Sullivan                           ## 
+   ##                    July 2016                                    ## 
+   ##                                                                 ##
+   #####################################################################
+
+   Zumo bot will follow a black line. The bot will adjust motor speeds so as 
+   to keep the two center ir sensors over the line.
+   This code also has parameters to adjust so as to make the motion both faster
+   smoother.
+*/
+
+#include <ZumoMotors.h>                // initialize library to be used by program
+ZumoMotors motors;                     // create motor library object
+
+
+// Define Global variables                                       
+int irEmit      = 2;      // create name for IR LED's
+int zumoButton  = 12;     // create name for Zumo button    
+int led         = 13;     // create name for Indicator LED
+int ledState    = LOW;    // create Indicator LED state and initialize value
+int mspeed      = 300;    // define value for motor speeds (0-400)
+int maxVal      = 0;
+int minVal      = 5000;
+int leftSpeed   = 0;
+int rightSpeed  = 0;
+int threshold   = 500;    // Define sensor threshold value where dark > threshold
+float kP        = 0.25;    // proportional control variable 
+int irPin[]     = {5, A2, A0, 11, A3, 4};   // create array of IR sensor pins
+int irVal[]     = {0,0,0,0,0,0};              // create array for IR sensor value
+long interval   = 100;                      // indicator LED delay variable
+unsigned long previousMillis = 0;           // delay variable for use with blinkLED()
+  
+void setup()
+{
+  //  Serial.begin(9600);                  // open up //  Serial link to PC for debugging
+  pinMode(zumoButton,INPUT_PULLUP);         // set button pin to input and turn on internal pullup resistor (pin reads HIGH until button is pushed)
+  pinMode(irEmit,OUTPUT);                   // set IR LED control pin to output
+  pinMode(led, OUTPUT);                     // set indicator LED pin to output   
+  while (digitalRead(zumoButton) == HIGH)  // while loop will call blinkLED() until button is pressed
+  {
+    blinkLED();                         // user defined function that blinks LED                             
+    } 
+  digitalWrite(led,LOW);                // turn off Indicator LED
+  digitalWrite(irEmit,HIGH);            // turn on IR LED's
+  irValue();                            // Read IR sensor values
+  for(int i=0;i<4;i++){
+    int temp1 = max(irVal[i],irVal[i+1]);
+    int temp2 = min(irVal[i],irVal[i+1]);
+    if(temp1>maxVal){maxVal=temp1;}
+    if(temp2<minVal){minVal=temp2;}
+  }
+  //  Serial.print("maxVal = ");
+  //  Serial.print(maxVal);
+  //  Serial.print("  minVal = ");
+  //  Serial.print(minVal);
+  //  Serial.println("");
+  delay(2000);       
+}
+
+void loop()
+{
+  irValue();
+  
+  int control = irVal[2] - irVal[3];
+  float deltaSpeed = abs(control)*kP;
+  deltaSpeed = int(deltaSpeed);
+  //  Serial.print("irVal[2] = ");
+  //  Serial.print(irVal[2]);
+  //  Serial.print("  irVal[3] = ");
+  //  Serial.print(irVal[3]);
+  //  Serial.print("  control = ");
+  //  Serial.print(control);
+  //  Serial.print("  deltaSpeed = ");
+  //  Serial.print(deltaSpeed);
+  //  Serial.println("");
+  //  Serial.println("");
+  if(abs(control)>50){
+  if (control >= 0){
+    leftSpeed = mspeed+3*deltaSpeed;
+    rightSpeed = mspeed-2*deltaSpeed;
+    if(rightSpeed<0){rightSpeed=0;}    
+  //  Serial.print("  leftSpeed = ");
+  //  Serial.print(leftSpeed);
+  //  Serial.print("  rightSpeed = ");
+  //  Serial.print(rightSpeed);
+  //  Serial.println("");
+  //  Serial.println("");      
+  }
+  else{
+    leftSpeed = mspeed-2*deltaSpeed;
+    if(leftSpeed<0){leftSpeed=0;}    
+    rightSpeed = mspeed+3*deltaSpeed;
+
+  //  Serial.print("  leftSpeed = ");
+  //  Serial.print(leftSpeed);
+  //  Serial.print("  rightSpeed = ");
+  //  Serial.print(rightSpeed);
+  //  Serial.println("");
+  //  Serial.println("");   
+    }}
+    else{
+    leftSpeed = mspeed;   
+    rightSpeed = mspeed;      
+    }
+//    delay(3000);   
+   motors.setLeftSpeed(leftSpeed);
+   motors.setRightSpeed(rightSpeed);   
+   }
+
+    
+
+
+//************************************** blinkLED() ********************************************
+
+void blinkLED(){
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {  
+    previousMillis = currentMillis;
+    if (ledState == LOW) {
+      ledState = HIGH;
+    } else {
+      ledState = LOW;
+    }
+    digitalWrite(led, ledState);
+  }
+}
+
+
+
+
+//************************************* irValue() **********************************************
+
+void irValue(){
+  unsigned long startTime;
+  
+  for(int i=0; i<6; i++){
+    pinMode(irPin[i], OUTPUT);             // Set IR detector pin to an output
+    digitalWrite(irPin[i], HIGH);          // Set the pin voltage to +5V and...
+    delayMicroseconds(10);                 // ...charge capacitor for 10 usec
+    pinMode(irPin[i],INPUT);               // Set IR detector pin to an output
+    digitalWrite(irPin[i], LOW);           // Set IR detector pin LOW allowing the capacitor to dicharge through phototransistor.
+    startTime = micros();                  // micros() is the number of microseconds since the program began. 
+    while(digitalRead(irPin[i]) == HIGH){  // Loop until capacitor has discharged below ~2.3V.
+      }
+    irVal[i] = micros() - startTime;       // determine the time in microseconds required for capacitor to discharge.
+//    //  Serial.print(irVal[i]);                // print the time required to discharge
+//    //  Serial.print("   ");                                                            
+  }                                        
+//    //  Serial.println("   ");
+//    delay(500);    
+}
+
+/*
+
+//************************************** findLine() ********************************************
+
+void findLine(){
+  leftSpeed = 0;
+  rightSpeed = 0;
+  motors.setSpeeds(leftSpeed,rightSpeed);
+  int turnSpeed = 25;
+  int i = 0;
+  int flag=0;
+  while (irVal[2]<500){
+    if (flag = 0){
+      motors.setSpeeds(turnSpeed+i,-turnSpeed-i);
+      delay(10);
+      leftSpeed = 0;
+      rightSpeed = 0;
+      motors.setSpeeds(leftSpeed,rightSpeed);      
+      flag = 1;
+    }
+    else{
+      motors.setSpeeds(-turnSpeed-i,turnSpeed+i);
+      delay(10);
+      leftSpeed = 0;
+      rightSpeed = 0;
+      motors.setSpeeds(leftSpeed,rightSpeed);        
+      flag = 0;      
+    }
+    i=i+1;
+    irValue();
+  }
+}
+*/
