@@ -50,7 +50,7 @@ void loop()
 {
   while(loopCount < 3){
 
-    loopCount++   // Increase the value of the loop counter by one
+    loopCount++;  // Increase the value of the loop counter by one
     
 // Go forward
      motors.setLeftSpeed(mspeed);
@@ -80,6 +80,7 @@ void loop()
 
      pauseBeep();
      
+}
 }
 
     
